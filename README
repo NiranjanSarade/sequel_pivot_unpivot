@@ -1,0 +1,60 @@
+Pivot means transposing rows into columns and Unpivot means transposing columns into rows. This is used to generate results in crosstab format, especially for reporting. The release of Oracle 11g includes explicit pivot-query support with PIVOT and UNPIVOT keywords.
+
+This is an effort to provide pivot and unpivot method support for popular Ruby Sequel gem.
+It provides basic functionality for pivoting and unpivoting tables.  
+
+- pivot(func,pivot_for, *columns)
+func: This is a Sequel function
+pivot_for: Row for which pivoting is to be done.
+*columns: List of column names generated after pivoting
+
+- unpivot(unpivot_for,column,*values)
+unpivot_for: Row for which unpivoting is to be done
+column: Name of new column
+*values: distinct values for which column values match
+
+e.g. employees_data table in original form
+company | employees | year
+A       | 300       | 2009
+A       | 400       | 2010
+A       | 500       | 2011
+A       | 600       | 2012
+B       | 600       | 2009
+B       | 700       | 2010
+B       | 750       | 2011
+B       | 900       | 2012
+
+
+dataset = DB[:employees_data].select(:company,:employees,:year).pivot(Sequel.function(:MAX,:employees), :year,'2009'.as(:y2009),'2010'.as(:y2010),'2011'.as(:y2011),'2012'.as(:y2012))
+
+dataset.sql =>
+SELECT * FROM (SELECT "COMPANY","EMPLOYEES","YEAR" FROM "EMPLOYEES_DATA") PIVOT (MAX(EMPLOYEES) FOR YEAR IN ('2009' "Y2009",'2010' "Y2010",'2011' "Y2011",'2012' "Y2012")) "PIVOT_TABLE"
+
+dataset.first =>
+{:company => "A", :y2009 => 300, :y2010 => 400, :y2011 => 500, :y2012 => 600}
+
+====
+
+Let's consider below table as pivoted table - e.g. emp_pivoted_table
+
+company | 2009 | 2010 | 2011 | y2012
+A       | 300  | 400  | 500  | 600
+B       | 600  | 700  | 750  | 900
+
+Now we would like to unpivot this by using the unpivot method - 
+
+dataset = DB[:emp_pivoted_table].unpivot(:employees,:year,:y2009.as(2009),:y2010.as(2010),:y2011.as(2011),:y2012.as(2012))
+
+dataset.sql =>
+SELECT * FROM (SELECT * FROM "EMP_PIVOTED_TABLE") UNPIVOT (EMPLOYEES FOR YEAR IN (Y2009 as 2009,Y2010 as 2010,Y2011 as 2011, Y2012 as 2012)) "UNPIVOT_TABLE"
+
+dataset.first(2) =>
+[{:company => "A", :year => 2009, :employees => 300}, {:company => "A", :year => 2010, :employees => 400}]
+
+* Authors - Niranjan Sarade and Radhe Chourasiya (http://oracleinpractice.blogspot.in/)
+
+
+
+
+
+
